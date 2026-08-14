@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # Professor permitiu .NET 8 ou superior
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar dependências
+        run: dotnet restore FCG.sln
+
+      - name: Compilar solução
+        run: dotnet build FCG.sln --no-restore
+
+      - name: Executar testes
+        run: >-
+          dotnet test FCG.sln
+          --no-build
+          --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+          --logger trx
+
+      - name: Restaurar ferramentas dotnet
+        if: always()
+        run: dotnet tool restore
+
+      - name: Gerar relatório de cobertura FCG.Domain
+        if: always()
+        run: >-
+          reportgenerator
+          -reports:"TestResults/**/coverage.cobertura.xml"
+          -targetdir:"CoverageReport"
+          -assemblyfilters:"+FCG.Domain"
+          -reporttypes:"Cobertura;Html;MarkdownSummaryGithub"
+          "-title:FCG.Domain – cobertura de código"
+
+      - name: Adicionar cobertura ao resumo do job
+        if: always() && hashFiles('CoverageReport/SummaryGithub.md') != ''
+        run: cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validar meta de cobertura FCG.Domain (70%)
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Assert-Coverage.ps1
+          -CoverageFile CoverageReport/Cobertura.xml
+          -Assembly FCG.Domain
+          -Minimum 70
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcg-domain-coverage
+          path: CoverageReport/
+          if-no-files-found: warn
+          retention-days: 14
