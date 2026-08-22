@@ -1,4 +1,5 @@
 using System.Text;
+using FCG.Api.Middleware;
 using FCG.Api.Seeding;
 using FCG.Api.Services;
 using FCG.Application.Abstractions;
@@ -11,8 +12,31 @@ using FCG.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Formatting.Compact;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId}{Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        formatter: new CompactJsonFormatter(),
+        path: "logs/fcg-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30)
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, cfg) => cfg
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId}{Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        formatter: new CompactJsonFormatter(),
+        path: "logs/fcg-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30));
 
 // --- Infraestrutura (DB + repositórios + UnitOfWork) ---
 var connectionString = builder.Configuration.GetConnectionString("Default")
@@ -91,15 +115,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(new { type = "InternalServerError", title = "Ocorreu um erro interno.", status = 500 });
-    });
-});
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
