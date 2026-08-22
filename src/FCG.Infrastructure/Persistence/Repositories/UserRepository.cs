@@ -11,18 +11,12 @@ public sealed class UserRepository(AppDbContext context) : IUserRepository
         => await context.Set<User>().FindAsync([id], cancellationToken);
 
     public async Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default)
-    {
-        var emailValue = email.Value;
-        return await context.Set<User>()
-            .FirstOrDefaultAsync(u => EF.Property<string>(u, "email") == emailValue, cancellationToken);
-    }
+        => await context.Set<User>()
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
     public async Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default)
-    {
-        var emailValue = email.Value;
-        return await context.Set<User>()
-            .AnyAsync(u => EF.Property<string>(u, "email") == emailValue, cancellationToken);
-    }
+        => await context.Set<User>()
+            .AnyAsync(u => u.Email == email, cancellationToken);
 
     public async Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken = default)
         => await context.Set<User>()
