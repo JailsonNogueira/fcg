@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FCG.Infrastructure.Persistence.Repositories;
 
-public sealed class UserRepository(AppDbContext context) : IUserRepository
+public sealed class UserRepository(FcgDbContext context) : IUserRepository
 {
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => await context.Set<User>().FindAsync([id], cancellationToken);

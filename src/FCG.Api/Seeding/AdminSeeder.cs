@@ -1,5 +1,6 @@
 using FCG.Domain.Users;
 using FCG.Domain.Users.ValueObjects;
+using FCG.Application.Abstractions;
 using FCG.Infrastructure.Persistence;
 using FCG.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ public sealed class AdminSeeder(
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<FcgDbContext>();
         var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
         var hasher = scope.ServiceProvider.GetRequiredService<BCryptPasswordHasher>();
 

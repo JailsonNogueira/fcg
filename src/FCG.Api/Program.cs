@@ -1,26 +1,34 @@
 using System.Text;
-using FCG.Domain.Users;
-using FCG.Infrastructure.Persistence;
-using FCG.Infrastructure.Persistence.Repositories;
-using FCG.Infrastructure.Security;
 using FCG.Api.Seeding;
+using FCG.Application.Abstractions;
+using FCG.Application.Games.CreateGame;
+using FCG.Application.Libraries.AddLibraryItem;
+using FCG.Application.Promotions.CreatePromotion;
+using FCG.Application.Users.RegisterUser;
+using FCG.Infrastructure;
+using FCG.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Banco de dados ---
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
-
-// --- Repositórios ---
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+// --- Infraestrutura (DB + repositórios + UnitOfWork) ---
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? builder.Configuration.GetConnectionString("Fcg")
+    ?? throw new InvalidOperationException("Connection string não configurada.");
+builder.Services.AddInfrastructure(connectionString);
 
 // --- Serviços de segurança ---
 builder.Services.AddSingleton<BCryptPasswordHasher>();
 builder.Services.AddSingleton<JwtTokenGenerator>();
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasherAdapter>();
+
+// --- Application handlers ---
+builder.Services.AddScoped<RegisterUserHandler>();
+builder.Services.AddScoped<CreateGameHandler>();
+builder.Services.AddScoped<CreatePromotionHandler>();
+builder.Services.AddScoped<AddLibraryItemHandler>();
 
 // --- Autenticação JWT ---
 var jwtKey = builder.Configuration["Jwt:SecretKey"]
@@ -49,7 +57,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "FIAP Cloud Games API", Version = "v1" });
-
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -59,7 +66,6 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "Informe o token JWT obtido no endpoint /auth/login.",
     });
-
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -98,3 +104,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

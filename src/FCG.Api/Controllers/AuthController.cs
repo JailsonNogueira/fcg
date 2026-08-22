@@ -3,6 +3,7 @@ using FCG.Domain.Common.Exceptions;
 using FCG.Domain.Users;
 using FCG.Domain.Users.ValueObjects;
 using FCG.Infrastructure.Persistence;
+using FCG.Infrastructure.Persistence.Repositories;
 using FCG.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +13,7 @@ namespace FCG.Api.Controllers;
 [Route("auth")]
 public sealed class AuthController(
     IUserRepository userRepository,
-    AppDbContext dbContext,
+    FcgDbContext dbContext,
     BCryptPasswordHasher hasher,
     JwtTokenGenerator jwtGenerator) : ControllerBase
 {
