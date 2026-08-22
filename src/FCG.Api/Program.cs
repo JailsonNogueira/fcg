@@ -1,4 +1,5 @@
 using System.Text;
+using FCG.Api.Middleware;
 using FCG.Api.Seeding;
 using FCG.Api.Services;
 using FCG.Application.Abstractions;
@@ -91,15 +92,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(new { type = "InternalServerError", title = "Ocorreu um erro interno.", status = 500 });
-    });
-});
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
