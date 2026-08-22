@@ -1,0 +1,2 @@
+using FCG.Application.Abstractions;
+namespace FCG.Api.Services; public sealed class SystemClock : IClock { public DateTimeOffset UtcNow => DateTimeOffset.UtcNow; }
