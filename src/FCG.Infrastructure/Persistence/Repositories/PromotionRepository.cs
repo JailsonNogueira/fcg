@@ -1,0 +1,4 @@
+using FCG.Domain.Promotions;
+using Microsoft.EntityFrameworkCore;
+namespace FCG.Infrastructure.Persistence.Repositories;
+public sealed class PromotionRepository(FcgDbContext context) : IPromotionRepository { public Task<Promotion?> GetByIdAsync(Guid id, CancellationToken ct = default) => context.Promotions.SingleOrDefaultAsync(x => x.Id == id, ct); public Task<Promotion?> GetActiveByGameIdAsync(Guid gameId, DateTimeOffset time, CancellationToken ct = default) => context.Promotions.SingleOrDefaultAsync(x => x.GameId == gameId && x.IsEnabled && x.StartsAt <= time && x.EndsAt >= time, ct); public Task AddAsync(Promotion promotion, CancellationToken ct = default) => context.Promotions.AddAsync(promotion, ct).AsTask(); public void Update(Promotion promotion) => context.Promotions.Update(promotion); }
