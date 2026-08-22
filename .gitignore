@@ -62,3 +62,6 @@ Desktop.ini
 *.bak
 *.swp
 ~$*
+
+# Configurações locais com segredos
+appsettings.Development.json
