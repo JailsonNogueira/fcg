@@ -1,5 +1,6 @@
 using System.Text;
 using FCG.Api.Seeding;
+using FCG.Api.Services;
 using FCG.Application.Abstractions;
 using FCG.Application.Games.CreateGame;
 using FCG.Application.Libraries.AddLibraryItem;
@@ -19,10 +20,11 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("Connection string não configurada.");
 builder.Services.AddInfrastructure(connectionString);
 
-// --- Serviços de segurança ---
+// --- Serviços de segurança e infra transversal ---
 builder.Services.AddSingleton<BCryptPasswordHasher>();
 builder.Services.AddSingleton<JwtTokenGenerator>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasherAdapter>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 
 // --- Application handlers ---
 builder.Services.AddScoped<RegisterUserHandler>();
