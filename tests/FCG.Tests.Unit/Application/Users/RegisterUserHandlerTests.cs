@@ -1,8 +1,10 @@
-using FCG.Application.Abstractions;
 using FCG.Application.Common;
 using FCG.Application.Users.RegisterUser;
+using FCG.Domain.Common.Exceptions;
 using FCG.Domain.Users;
+using FCG.Domain.Users.Enums;
 using FCG.Domain.Users.ValueObjects;
+using FCG.Tests.Shared.Fakes;
 
 namespace FCG.Tests.Unit.Application.Users;
 
@@ -17,8 +19,33 @@ public sealed class RegisterUserHandlerTests
         var id = await handler.HandleAsync(new RegisterUserCommand("Alice", "alice@test.com", "Senha@123"));
 
         Assert.NotEqual(Guid.Empty, id);
-        Assert.Single(repository.AddedUsers);
-        Assert.Equal("alice@test.com", repository.AddedUsers[0].Email.Value);
+        var created = Assert.Single(repository.Items);
+        Assert.Equal("alice@test.com", created.Email.Value);
+        Assert.Equal(UserRole.Player, created.Role);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldPersistAdministratorWhenRequested()
+    {
+        var repository = new InMemoryUserRepository();
+        var handler = new RegisterUserHandler(repository, new StubPasswordHasher(), new RecordingUnitOfWork());
+
+        var command = new RegisterUserCommand("Root", "root@test.com", "Senha@123", UserRole.Administrator);
+
+        await handler.HandleAsync(command);
+
+        Assert.Equal(UserRole.Administrator, Assert.Single(repository.Items).Role);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldHashPasswordBeforePersisting()
+    {
+        var repository = new InMemoryUserRepository();
+        var handler = new RegisterUserHandler(repository, new StubPasswordHasher(), new RecordingUnitOfWork());
+
+        await handler.HandleAsync(new RegisterUserCommand("Alice", "alice@test.com", "Senha@123"));
+
+        Assert.Equal("hashed:Senha@123", Assert.Single(repository.Items).PasswordHash);
     }
 
     [Fact]
@@ -35,8 +62,9 @@ public sealed class RegisterUserHandlerTests
     [Fact]
     public async Task HandleAsync_ShouldRejectDuplicateEmail()
     {
+        var existing = User.CreatePlayer("Alice", Email.Create("alice@test.com"), "hash");
         var handler = new RegisterUserHandler(
-            new InMemoryUserRepository { EmailExists = true },
+            new InMemoryUserRepository().Seed(existing),
             new StubPasswordHasher(),
             new RecordingUnitOfWork());
 
@@ -44,45 +72,15 @@ public sealed class RegisterUserHandlerTests
             handler.HandleAsync(new RegisterUserCommand("Alice", "alice@test.com", "Senha@123")));
     }
 
-    private sealed class InMemoryUserRepository : IUserRepository
+    [Fact]
+    public async Task HandleAsync_ShouldRejectWeakPassword()
     {
-        public bool EmailExists { get; init; }
-        public List<User> AddedUsers { get; } = [];
+        var handler = new RegisterUserHandler(
+            new InMemoryUserRepository(),
+            new StubPasswordHasher(),
+            new RecordingUnitOfWork());
 
-        public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default) =>
-            Task.FromResult(EmailExists);
-
-        public Task AddAsync(User user, CancellationToken cancellationToken = default)
-        {
-            AddedUsers.Add(user);
-            return Task.CompletedTask;
-        }
-
-        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult<User?>(null);
-
-        public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default) =>
-            Task.FromResult<User?>(null);
-
-        public Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(0);
-
-        public void Update(User user) { }
-    }
-
-    private sealed class StubPasswordHasher : IPasswordHasher
-    {
-        public string Hash(string password) => $"hashed:{password}";
-    }
-
-    private sealed class RecordingUnitOfWork : IUnitOfWork
-    {
-        public bool WasSaved { get; private set; }
-
-        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            WasSaved = true;
-            return Task.CompletedTask;
-        }
+        await Assert.ThrowsAsync<DomainException>(() =>
+            handler.HandleAsync(new RegisterUserCommand("Alice", "alice@test.com", "12345")));
     }
 }

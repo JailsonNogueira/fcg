@@ -1,154 +1,149 @@
-using FCG.Application.Abstractions;
 using FCG.Application.Common;
 using FCG.Application.Libraries.AddLibraryItem;
 using FCG.Domain.Games;
 using FCG.Domain.Libraries;
+using FCG.Domain.Promotions;
 using FCG.Domain.Users;
 using FCG.Domain.Users.ValueObjects;
+using FCG.Tests.Shared.Fakes;
 
 namespace FCG.Tests.Unit.Application.Libraries;
 
 public sealed class AddLibraryItemHandlerTests
 {
-    private static readonly Guid PlayerId = Guid.NewGuid();
-    private static readonly Guid GameId = Guid.NewGuid();
     private static readonly DateTimeOffset FixedNow = new(2026, 8, 23, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task HandleAsync_ShouldPersistLibraryItem()
+    public async Task HandleAsync_ShouldPersistLibraryItemAtBasePriceWhenThereIsNoPromotion()
     {
-        var users = new StubUserRepository(playerExists: true);
-        var games = new StubGameRepository(gameExists: true);
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        var game = Game.Create("Test Game", "Descrição", 49.90m);
         var library = new InMemoryLibraryItemRepository();
-        var handler = new AddLibraryItemHandler(users, games, library, new FixedClock(FixedNow), new RecordingUnitOfWork());
+        var unitOfWork = new RecordingUnitOfWork();
+        var handler = Build(player, game, new InMemoryPromotionRepository(), library, unitOfWork);
 
-        var id = await handler.HandleAsync(new AddLibraryItemCommand(PlayerId, GameId, 49.90m));
+        var id = await handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id));
 
         Assert.NotEqual(Guid.Empty, id);
-        Assert.Single(library.AddedItems);
-        Assert.Equal(PlayerId, library.AddedItems[0].PlayerId);
-        Assert.Equal(GameId, library.AddedItems[0].GameId);
-        Assert.Equal(FixedNow, library.AddedItems[0].AcquiredAt);
+        var item = Assert.Single(library.Items);
+        Assert.Equal(player.Id, item.PlayerId);
+        Assert.Equal(game.Id, item.GameId);
+        Assert.Equal(FixedNow, item.AcquiredAt);
+        Assert.Equal(49.90m, item.PricePaid);
+        Assert.True(unitOfWork.WasSaved);
     }
 
     [Fact]
-    public async Task HandleAsync_ShouldSaveChanges()
+    public async Task HandleAsync_ShouldApplyTheActivePromotionToThePricePaid()
     {
-        var unitOfWork = new RecordingUnitOfWork();
-        var handler = new AddLibraryItemHandler(
-            new StubUserRepository(playerExists: true),
-            new StubGameRepository(gameExists: true),
-            new InMemoryLibraryItemRepository(),
-            new FixedClock(FixedNow),
-            unitOfWork);
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        var game = Game.Create("Test Game", "Descrição", 100m);
+        var promotion = Promotion.Create(game.Id, 25m, FixedNow.AddDays(-1), FixedNow.AddDays(1));
+        var library = new InMemoryLibraryItemRepository();
+        var handler = Build(player, game, new InMemoryPromotionRepository().Seed(promotion), library);
 
-        await handler.HandleAsync(new AddLibraryItemCommand(PlayerId, GameId, 49.90m));
+        await handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id));
 
-        Assert.True(unitOfWork.WasSaved);
+        Assert.Equal(75m, Assert.Single(library.Items).PricePaid);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldIgnorePromotionOutsideItsPeriod()
+    {
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        var game = Game.Create("Test Game", "Descrição", 100m);
+        var expired = Promotion.Create(game.Id, 25m, FixedNow.AddDays(-10), FixedNow.AddDays(-5));
+        var library = new InMemoryLibraryItemRepository();
+        var handler = Build(player, game, new InMemoryPromotionRepository().Seed(expired), library);
+
+        await handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id));
+
+        Assert.Equal(100m, Assert.Single(library.Items).PricePaid);
     }
 
     [Fact]
     public async Task HandleAsync_ShouldRejectUnknownPlayer()
     {
+        var game = Game.Create("Test Game", "Descrição", 49.90m);
         var handler = new AddLibraryItemHandler(
-            new StubUserRepository(playerExists: false),
-            new StubGameRepository(gameExists: true),
+            new InMemoryUserRepository(),
+            new InMemoryGameRepository().Seed(game),
+            new InMemoryPromotionRepository(),
             new InMemoryLibraryItemRepository(),
             new FixedClock(FixedNow),
             new RecordingUnitOfWork());
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            handler.HandleAsync(new AddLibraryItemCommand(PlayerId, GameId, 49.90m)));
+            handler.HandleAsync(new AddLibraryItemCommand(Guid.NewGuid(), game.Id)));
     }
 
     [Fact]
     public async Task HandleAsync_ShouldRejectUnknownGame()
     {
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
         var handler = new AddLibraryItemHandler(
-            new StubUserRepository(playerExists: true),
-            new StubGameRepository(gameExists: false),
+            new InMemoryUserRepository().Seed(player),
+            new InMemoryGameRepository(),
+            new InMemoryPromotionRepository(),
             new InMemoryLibraryItemRepository(),
             new FixedClock(FixedNow),
             new RecordingUnitOfWork());
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            handler.HandleAsync(new AddLibraryItemCommand(PlayerId, GameId, 49.90m)));
+            handler.HandleAsync(new AddLibraryItemCommand(player.Id, Guid.NewGuid())));
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldRejectGameOutOfTheCatalog()
+    {
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        var game = Game.Create("Test Game", "Descrição", 49.90m);
+        game.Deactivate();
+        var handler = Build(player, game, new InMemoryPromotionRepository(), new InMemoryLibraryItemRepository());
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id)));
+    }
+
+    [Fact]
+    public async Task HandleAsync_ShouldRejectInactiveAccount()
+    {
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        player.Deactivate();
+        var game = Game.Create("Test Game", "Descrição", 49.90m);
+        var handler = Build(player, game, new InMemoryPromotionRepository(), new InMemoryLibraryItemRepository());
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id)));
     }
 
     [Fact]
     public async Task HandleAsync_ShouldRejectDuplicateLibraryItem()
     {
-        var handler = new AddLibraryItemHandler(
-            new StubUserRepository(playerExists: true),
-            new StubGameRepository(gameExists: true),
-            new InMemoryLibraryItemRepository { AlreadyOwned = true },
-            new FixedClock(FixedNow),
-            new RecordingUnitOfWork());
+        var player = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
+        var game = Game.Create("Test Game", "Descrição", 49.90m);
+        var owned = LibraryItem.Create(player.Id, game.Id, FixedNow, 49.90m);
+        var handler = Build(
+            player,
+            game,
+            new InMemoryPromotionRepository(),
+            new InMemoryLibraryItemRepository().Seed(owned));
 
         await Assert.ThrowsAsync<ConflictException>(() =>
-            handler.HandleAsync(new AddLibraryItemCommand(PlayerId, GameId, 49.90m)));
+            handler.HandleAsync(new AddLibraryItemCommand(player.Id, game.Id)));
     }
 
-    private sealed class StubUserRepository(bool playerExists) : IUserRepository
-    {
-        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            if (!playerExists) return Task.FromResult<User?>(null);
-            var user = User.CreatePlayer("Player", Email.Create("player@test.com"), "hash");
-            return Task.FromResult<User?>(user);
-        }
-
-        public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task<User?> GetByEmailAsync(Email email, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
-        public Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
-        public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Update(User user) { }
-    }
-
-    private sealed class StubGameRepository(bool gameExists) : IGameRepository
-    {
-        public Task<Game?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            var game = gameExists ? Game.Create("Test Game", "Descrição", 49.90m) : null;
-            return Task.FromResult(game);
-        }
-
-        public Task<bool> ExistsByNormalizedNameAsync(string normalizedName, Guid? ignoredGameId = null, CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task AddAsync(Game game, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Update(Game game) { }
-    }
-
-    private sealed class InMemoryLibraryItemRepository : ILibraryItemRepository
-    {
-        public bool AlreadyOwned { get; init; }
-        public List<LibraryItem> AddedItems { get; } = [];
-
-        public Task<bool> ExistsAsync(Guid playerId, Guid gameId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(AlreadyOwned);
-
-        public Task AddAsync(LibraryItem libraryItem, CancellationToken cancellationToken = default)
-        {
-            AddedItems.Add(libraryItem);
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyCollection<LibraryItem>> GetByPlayerIdAsync(Guid playerId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyCollection<LibraryItem>>([]);
-    }
-
-    private sealed class FixedClock(DateTimeOffset now) : IClock
-    {
-        public DateTimeOffset UtcNow => now;
-    }
-
-    private sealed class RecordingUnitOfWork : IUnitOfWork
-    {
-        public bool WasSaved { get; private set; }
-
-        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            WasSaved = true;
-            return Task.CompletedTask;
-        }
-    }
+    private static AddLibraryItemHandler Build(
+        User player,
+        Game game,
+        InMemoryPromotionRepository promotions,
+        InMemoryLibraryItemRepository library,
+        RecordingUnitOfWork? unitOfWork = null)
+        => new(
+            new InMemoryUserRepository().Seed(player),
+            new InMemoryGameRepository().Seed(game),
+            promotions,
+            library,
+            new FixedClock(FixedNow),
+            unitOfWork ?? new RecordingUnitOfWork());
 }

@@ -24,6 +24,7 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         var (status, title) = exception switch
         {
             DomainException => (StatusCodes.Status400BadRequest, "Requisição inválida."),
+            UnauthorizedException => (StatusCodes.Status401Unauthorized, "Não autorizado."),
             ConflictException => (StatusCodes.Status409Conflict, "Conflito de dados."),
             KeyNotFoundException => (StatusCodes.Status404NotFound, "Recurso não encontrado."),
             _ => (StatusCodes.Status500InternalServerError, "Ocorreu um erro interno.")

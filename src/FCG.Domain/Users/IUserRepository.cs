@@ -1,3 +1,4 @@
+using FCG.Domain.Users.Enums;
 using FCG.Domain.Users.ValueObjects;
 
 namespace FCG.Domain.Users;
@@ -27,9 +28,13 @@ public interface IUserRepository
     /// Verifica se o e-mail já pertence a uma conta.
     /// </summary>
     /// <param name="email">E-mail procurado.</param>
+    /// <param name="ignoredUserId">Usuário desconsiderado durante uma atualização.</param>
     /// <param name="cancellationToken">Token de cancelamento da operação.</param>
     /// <returns><see langword="true"/> quando o e-mail já estiver cadastrado.</returns>
-    Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByEmailAsync(
+        Email email,
+        Guid? ignoredUserId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Conta os administradores ativos da plataforma.
@@ -37,6 +42,34 @@ public interface IUserRepository
     /// <param name="cancellationToken">Token de cancelamento da operação.</param>
     /// <returns>Quantidade de administradores ativos.</returns>
     Task<int> CountActiveAdministratorsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Obtém uma página de usuários ordenados por nome.
+    /// </summary>
+    /// <param name="role">Perfil usado como filtro opcional.</param>
+    /// <param name="includeInactive">Indica se contas inativas entram no resultado.</param>
+    /// <param name="skip">Quantidade de registros ignorados.</param>
+    /// <param name="take">Quantidade máxima de registros retornados.</param>
+    /// <param name="cancellationToken">Token de cancelamento da operação.</param>
+    /// <returns>Usuários encontrados na página solicitada.</returns>
+    Task<IReadOnlyCollection<User>> SearchAsync(
+        UserRole? role,
+        bool includeInactive,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conta os usuários que atendem aos mesmos filtros de <see cref="SearchAsync"/>.
+    /// </summary>
+    /// <param name="role">Perfil usado como filtro opcional.</param>
+    /// <param name="includeInactive">Indica se contas inativas entram na contagem.</param>
+    /// <param name="cancellationToken">Token de cancelamento da operação.</param>
+    /// <returns>Quantidade total de usuários filtrados.</returns>
+    Task<int> CountAsync(
+        UserRole? role,
+        bool includeInactive,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Adiciona um novo usuário ao repositório.

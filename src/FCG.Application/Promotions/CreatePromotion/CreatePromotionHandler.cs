@@ -1,4 +1,5 @@
 using FCG.Application.Abstractions;
+using FCG.Application.Common;
 using FCG.Domain.Games;
 using FCG.Domain.Promotions;
 
@@ -21,6 +22,16 @@ public sealed class CreatePromotionHandler(
             command.DiscountPercentage,
             command.StartsAt,
             command.EndsAt);
+
+        // Duas promoções vigentes ao mesmo tempo tornariam o preço do catálogo ambíguo.
+        if (await promotions.ExistsOverlappingAsync(
+                promotion.GameId,
+                promotion.StartsAt,
+                promotion.EndsAt,
+                cancellationToken: cancellationToken))
+        {
+            throw new ConflictException("O jogo já possui uma promoção vigente no período informado.");
+        }
 
         await promotions.AddAsync(promotion, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
