@@ -2,6 +2,7 @@ using System.Text;
 using FCG.Api.Middleware;
 using FCG.Api.Seeding;
 using FCG.Api.Services;
+using FCG.Api.Authorization.DependencyInjection;
 using FCG.Application.Abstractions;
 using FCG.Application.Games.CreateGame;
 using FCG.Application.Libraries.AddLibraryItem;
@@ -75,7 +76,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddFcgAuthorization();
 
 // --- Controllers e Swagger ---
 builder.Services.AddControllers();
