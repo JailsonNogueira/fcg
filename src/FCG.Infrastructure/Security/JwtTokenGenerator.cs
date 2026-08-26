@@ -1,13 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FCG.Application.Abstractions;
 using FCG.Domain.Users;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FCG.Infrastructure.Security;
 
-public sealed class JwtTokenGenerator
+public sealed class JwtTokenGenerator : ITokenGenerator
 {
     private readonly string _secretKey;
     private readonly string _issuer;

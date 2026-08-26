@@ -1,12 +1,11 @@
 using System.Text;
+using System.Text.Json.Serialization;
+using FCG.Api.Authorization.DependencyInjection;
+using FCG.Api.DependencyInjection;
 using FCG.Api.Middleware;
 using FCG.Api.Seeding;
 using FCG.Api.Services;
 using FCG.Application.Abstractions;
-using FCG.Application.Games.CreateGame;
-using FCG.Application.Libraries.AddLibraryItem;
-using FCG.Application.Promotions.CreatePromotion;
-using FCG.Application.Users.RegisterUser;
 using FCG.Infrastructure;
 using FCG.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -47,14 +46,12 @@ builder.Services.AddInfrastructure(connectionString);
 // --- Serviços de segurança e infra transversal ---
 builder.Services.AddSingleton<BCryptPasswordHasher>();
 builder.Services.AddSingleton<JwtTokenGenerator>();
+builder.Services.AddSingleton<ITokenGenerator>(sp => sp.GetRequiredService<JwtTokenGenerator>());
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasherAdapter>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 
 // --- Application handlers ---
-builder.Services.AddScoped<RegisterUserHandler>();
-builder.Services.AddScoped<CreateGameHandler>();
-builder.Services.AddScoped<CreatePromotionHandler>();
-builder.Services.AddScoped<AddLibraryItemHandler>();
+builder.Services.AddApplicationHandlers();
 
 // --- Autenticação JWT ---
 var jwtKey = builder.Configuration["Jwt:SecretKey"]
@@ -75,10 +72,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddFcgAuthorization();
 
 // --- Controllers e Swagger ---
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Sem isso, "role": "Administrator" só seria aceito como número no corpo da requisição.
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

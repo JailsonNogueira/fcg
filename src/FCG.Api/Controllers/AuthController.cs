@@ -1,88 +1,48 @@
-using DomainUser = FCG.Domain.Users.User;
-using FCG.Domain.Common.Exceptions;
-using FCG.Domain.Users;
-using FCG.Domain.Users.ValueObjects;
-using FCG.Infrastructure.Persistence;
-using FCG.Infrastructure.Persistence.Repositories;
-using FCG.Infrastructure.Security;
+using FCG.Application.Users.AuthenticateUser;
+using FCG.Application.Users.RegisterUser;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FCG.Api.Controllers;
 
+/// <summary>
+/// Porta de entrada pública da plataforma: qualquer pessoa cria a própria conta de jogador
+/// e autentica. A gestão de contas pela equipe administrativa fica em <c>api/users</c>.
+/// </summary>
 [ApiController]
 [Route("auth")]
+[AllowAnonymous]
 public sealed class AuthController(
-    IUserRepository userRepository,
-    FcgDbContext dbContext,
-    BCryptPasswordHasher hasher,
-    JwtTokenGenerator jwtGenerator) : ControllerBase
+    RegisterUserHandler registerHandler,
+    AuthenticateUserHandler authenticateHandler) : ControllerBase
 {
+    /// <summary>Cadastra uma nova conta de jogador.</summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Register(
-        [FromBody] RegisterRequest request,
+    public async Task<ActionResult> Register(
+        [FromBody] RegisterPlayerRequest request,
         CancellationToken cancellationToken)
     {
-        Email email;
-        Password password;
+        // O perfil não vem do corpo: o cadastro público sempre cria um jogador.
+        var command = new RegisterUserCommand(request.Name, request.Email, request.Password);
 
-        try
-        {
-            email = Email.Create(request.Email);
-            password = Password.Create(request.Password);
-        }
-        catch (DomainException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var id = await registerHandler.HandleAsync(command, cancellationToken);
 
-        if (await userRepository.ExistsByEmailAsync(email, cancellationToken))
-            return Conflict(new { error = "E-mail já cadastrado." });
-
-        var passwordHash = hasher.Hash(password);
-        var user = DomainUser.CreatePlayer(request.Name?.Trim() ?? string.Empty, email, passwordHash);
-
-        try
-        {
-            await userRepository.AddAsync(user, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DomainException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-
-        return CreatedAtAction(nameof(Register), new { id = user.Id, email = user.Email.Value, role = user.Role.ToString() });
+        return Created($"api/users/{id}", new { id });
     }
 
+    /// <summary>Autentica uma conta e devolve o token de acesso.</summary>
     [HttpPost("login")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthenticationResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginRequest request,
+    public async Task<ActionResult<AuthenticationResult>> Login(
+        [FromBody] AuthenticateUserCommand command,
         CancellationToken cancellationToken)
     {
-        Email email;
-        try
-        {
-            email = Email.Create(request.Email);
-        }
-        catch (DomainException)
-        {
-            return Unauthorized(new { error = "Credenciais inválidas." });
-        }
-
-        var user = await userRepository.GetByEmailAsync(email, cancellationToken);
-
-        if (user is null || !user.IsActive || !hasher.Verify(request.Password ?? string.Empty, user.PasswordHash))
-            return Unauthorized(new { error = "Credenciais inválidas." });
-
-        var token = jwtGenerator.Generate(user);
-        return Ok(new { token });
+        return Ok(await authenticateHandler.HandleAsync(command, cancellationToken));
     }
 }
 
-public sealed record RegisterRequest(string? Name, string? Email, string? Password);
-public sealed record LoginRequest(string? Email, string? Password);
+public sealed record RegisterPlayerRequest(string Name, string Email, string Password);
