@@ -14,6 +14,16 @@ public interface IGameRepository
     Task<Game?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Obtém os jogos correspondentes a um conjunto de identificadores.
+    /// </summary>
+    /// <param name="ids">Identificadores procurados.</param>
+    /// <param name="cancellationToken">Token de cancelamento da operação.</param>
+    /// <returns>Jogos encontrados, em quantidade menor ou igual à de identificadores.</returns>
+    Task<IReadOnlyCollection<Game>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Verifica se o nome normalizado já pertence a outro jogo.
     /// </summary>
     /// <param name="normalizedName">Nome normalizado do jogo.</param>
@@ -23,6 +33,34 @@ public interface IGameRepository
     Task<bool> ExistsByNormalizedNameAsync(
         string normalizedName,
         Guid? ignoredGameId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Obtém uma página do catálogo ordenada por nome.
+    /// </summary>
+    /// <param name="term">Trecho do nome usado como filtro opcional.</param>
+    /// <param name="includeInactive">Indica se jogos inativos entram no resultado.</param>
+    /// <param name="skip">Quantidade de registros ignorados.</param>
+    /// <param name="take">Quantidade máxima de registros retornados.</param>
+    /// <param name="cancellationToken">Token de cancelamento da operação.</param>
+    /// <returns>Jogos encontrados na página solicitada.</returns>
+    Task<IReadOnlyCollection<Game>> SearchAsync(
+        string? term,
+        bool includeInactive,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conta os jogos que atendem aos mesmos filtros de <see cref="SearchAsync"/>.
+    /// </summary>
+    /// <param name="term">Trecho do nome usado como filtro opcional.</param>
+    /// <param name="includeInactive">Indica se jogos inativos entram na contagem.</param>
+    /// <param name="cancellationToken">Token de cancelamento da operação.</param>
+    /// <returns>Quantidade total de jogos filtrados.</returns>
+    Task<int> CountAsync(
+        string? term,
+        bool includeInactive,
         CancellationToken cancellationToken = default);
 
     /// <summary>
