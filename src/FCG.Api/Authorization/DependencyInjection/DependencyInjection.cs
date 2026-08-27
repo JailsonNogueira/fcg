@@ -17,13 +17,15 @@ public static class DependencyInjection
             options.AddPolicy(Policies.ManageUsers, policy =>
                 policy.RequireRole(nameof(UserRole.Administrator)));
 
+            // Um único RequireRole com vários papéis é OR. Duas chamadas separadas seriam AND,
+            // e nenhuma conta possui os dois papéis ao mesmo tempo.
             options.AddPolicy(Policies.Catalog, policy =>
                 policy.RequireRole(nameof(UserRole.Player), nameof(UserRole.Administrator)));
 
-            // Um único RequireRole com vários papéis é OR. Duas chamadas separadas seriam AND,
-            // e nenhuma conta possui os dois papéis ao mesmo tempo.
+            // Só Player, de propósito — não é omissão do Administrator que existe em Catalog.
+            // A biblioteca é pessoal: o administrador mantém o catálogo, mas não adquire para si.
             options.AddPolicy(Policies.Library, policy =>
-                policy.RequireRole(nameof(UserRole.Player), nameof(UserRole.Administrator)));
+                policy.RequireRole(nameof(UserRole.Player)));
         });
 
         return services;
