@@ -54,15 +54,15 @@ Mapeamento direto entre cada requisito do enunciado e onde ele está implementad
 
 | Requisito | Status | Onde verificar |
 |---|---|---|
-| Entity Framework Core | ✅ | [FcgDbContext.cs](src/FCG.Infrastructure/Data/FcgDbContext.cs) — PostgreSQL |
-| Migrations | ✅ | Pasta [Migrations/](src/FCG.Infrastructure/Migrations/) — aplicadas automaticamente na inicialização |
+| Entity Framework Core | ✅ | [FcgDbContext.cs](src/FCG.Infrastructure/Persistence/FcgDbContext.cs) — PostgreSQL |
+| Migrations | ✅ | Pasta [Migrations/](src/FCG.Infrastructure/Persistence/Migrations/) — aplicadas automaticamente na inicialização |
 | API .NET com Controllers MVC | ✅ | Pasta [Controllers/](src/FCG.Api/Controllers/) — 5 controllers |
 | Middleware para tratamento de erros | ✅ | [ExceptionHandlingMiddleware.cs](src/FCG.Api/Middleware/ExceptionHandlingMiddleware.cs) — retorna `application/problem+json` |
 | Logs estruturados | ✅ | Serilog — console + arquivo JSON diário (`logs/fcg-*.json`) via [CorrelationIdMiddleware.cs](src/FCG.Api/Middleware/CorrelationIdMiddleware.cs) |
 | Swagger | ✅ | Configurado em [Program.cs](src/FCG.Api/Program.cs) — acessível em `/swagger` |
 | Testes unitários | ✅ | Projeto [FCG.Tests.Unit](tests/FCG.Tests.Unit/) — xUnit |
-| BDD em pelo menos um módulo | ✅ | Projeto [FCG.Tests.Bdd](tests/FCG.Tests.Bdd/) — Reqnroll + xUnit, 3 features, 21 cenários |
-| DDD — Event Storming | ✅ | [Miro](https://miro.com/app/board/uXjVH4alQ5U=/) — fluxos de criação de jogos e usuários |
+| BDD em pelo menos um módulo | ✅ | Projeto [FCG.Tests.Bdd](tests/FCG.Tests.Bdd/) — Reqnroll + xUnit, 3 features, 20 cenários (26 casos executados) |
+| DDD — Event Storming | ✅ | [Miro](https://miro.com/app/board/uXjVHxmXqYs=/) — fluxos de criação de jogos e usuários |
 | DDD — organização de entidades e regras de negócio | ✅ | Camada [FCG.Domain](src/FCG.Domain/) — agregados, value objects, exceções de domínio |
 
 ---
@@ -117,6 +117,9 @@ Cada agregado encapsula suas validações e regras — não há lógica de negó
 | Docker Desktop | Para o banco PostgreSQL local |
 | Git | Para clonar o repositório |
 
+> O enunciado da Fase 1 pede .NET 8; a turma foi autorizada a usar **.NET 10**, versão em que o projeto está
+> fixado (`global.json`).
+
 ---
 
 ## Como executar
@@ -140,7 +143,38 @@ Aguarde o health check concluir (≈ 10 segundos):
 docker compose ps
 ```
 
-### 3. Rode a API
+### 3. Configure as credenciais locais
+
+Crie o arquivo `src/FCG.Api/appsettings.Development.json` — ele **não é versionado** (cada integrante cria o seu):
+
+```json
+{
+  "Jwt": {
+    "SecretKey": "fcg-dev-secret-key-com-no-minimo-32-caracteres"
+  },
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=fcg;Username=fcg;Password=fcg_local_password"
+  },
+  "AdminSeed": {
+    "Password": "Admin@123"
+  }
+}
+```
+
+O `appsettings.json` versionado já traz `Jwt:Issuer`/`Audience` e o e-mail do admin (`admin@fcg.com`), mas deixa
+`Jwt:SecretKey`, `ConnectionStrings:Default` e `AdminSeed:Password` vazios — este arquivo os preenche. **Sem ele
+a API não sobe** (`InvalidOperationException: Jwt:SecretKey não configurada`).
+
+> **Em CI/CD ou produção**, sem o `appsettings.Development.json`, forneça as mesmas configurações por variáveis
+> de ambiente (o `__` representa o aninhamento das chaves):
+>
+> ```bash
+> ConnectionStrings__Default="Host=...;Port=5432;Database=fcg;Username=fcg;Password=..."
+> Jwt__SecretKey="sua-chave-secreta-com-no-minimo-32-caracteres"
+> AdminSeed__Password="senha-do-admin-inicial"
+> ```
+
+### 4. Rode a API
 
 ```bash
 dotnet run --project src/FCG.Api
@@ -155,7 +189,7 @@ Na inicialização:
 | E-mail | `admin@fcg.com` |
 | Senha | `Admin@123` |
 
-### 4. Acesse o Swagger
+### 5. Acesse o Swagger
 
 Abra no navegador: **http://localhost:5273/swagger**
 
@@ -175,7 +209,7 @@ curl -s -X POST http://localhost:5273/auth/register \
   -d '{"name":"Alice","email":"alice@fcg.com","password":"Senha@123"}'
 ```
 
-**Esperado:** `201 Created` com `id`, `email` e `role: "Player"`.
+**Esperado:** `201 Created` com o `id` da conta criada (o header `Location` aponta para `api/users/{id}`).
 
 **Validação de senha — rejeitar senha fraca:**
 
@@ -460,9 +494,9 @@ Escritos em **português** com [Reqnroll](https://reqnroll.net/) (Gherkin + xUni
 |---|---|---|
 | `CadastroDeUsuario.feature` | 7 | Cadastro público, validação de senha e e-mail, e-mail duplicado, normalização, criação por admin |
 | `Autenticacao.feature` | 5 | Login válido, senha incorreta, conta inexistente, conta inativa, e-mail malformado |
-| `BibliotecaDeJogos.feature` | 9 | Aquisição sem/com promoção, promoção vencida, duplicidade, jogo inativo, conta inativa, isolamento entre jogadores |
+| `BibliotecaDeJogos.feature` | 8 | Aquisição sem/com promoção, promoção vencida, duplicidade, jogo inativo, conta inativa, isolamento entre jogadores |
 
-**Total: 21 cenários BDD.**
+**Total: 20 cenários** — `dotnet test` executa **26 casos** (os 2 cenários de cadastro são Esquemas de Cenário, que expandem em várias linhas de exemplos).
 
 ### Cobertura de código
 
@@ -487,7 +521,7 @@ O domínio foi mapeado por **Event Storming** no Miro, cobrindo os seguintes flu
 - **Jornada do Jogador:** cadastro → autenticação → consulta ao catálogo → aquisição de jogo → acesso à biblioteca
 - **Jornada do Administrador:** autenticação → gestão de usuários → cadastro/edição de jogos → cadastro de promoções
 
-📋 **Link do Miro:** https://miro.com/app/board/uXjVH4alQ5U=/
+📋 **Link do Miro:** https://miro.com/app/board/uXjVHxmXqYs=/
 
 Os princípios de DDD aplicados no código:
 
