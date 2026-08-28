@@ -117,6 +117,9 @@ Cada agregado encapsula suas validações e regras — não há lógica de negó
 | Docker Desktop | Para o banco PostgreSQL local |
 | Git | Para clonar o repositório |
 
+> O enunciado da Fase 1 pede .NET 8; a turma foi autorizada a usar **.NET 10**, versão em que o projeto está
+> fixado (`global.json`).
+
 ---
 
 ## Como executar
