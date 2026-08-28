@@ -54,8 +54,8 @@ Mapeamento direto entre cada requisito do enunciado e onde ele está implementad
 
 | Requisito | Status | Onde verificar |
 |---|---|---|
-| Entity Framework Core | ✅ | [FcgDbContext.cs](src/FCG.Infrastructure/Data/FcgDbContext.cs) — PostgreSQL |
-| Migrations | ✅ | Pasta [Migrations/](src/FCG.Infrastructure/Migrations/) — aplicadas automaticamente na inicialização |
+| Entity Framework Core | ✅ | [FcgDbContext.cs](src/FCG.Infrastructure/Persistence/FcgDbContext.cs) — PostgreSQL |
+| Migrations | ✅ | Pasta [Migrations/](src/FCG.Infrastructure/Persistence/Migrations/) — aplicadas automaticamente na inicialização |
 | API .NET com Controllers MVC | ✅ | Pasta [Controllers/](src/FCG.Api/Controllers/) — 5 controllers |
 | Middleware para tratamento de erros | ✅ | [ExceptionHandlingMiddleware.cs](src/FCG.Api/Middleware/ExceptionHandlingMiddleware.cs) — retorna `application/problem+json` |
 | Logs estruturados | ✅ | Serilog — console + arquivo JSON diário (`logs/fcg-*.json`) via [CorrelationIdMiddleware.cs](src/FCG.Api/Middleware/CorrelationIdMiddleware.cs) |
