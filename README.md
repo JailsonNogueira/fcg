@@ -140,7 +140,29 @@ Aguarde o health check concluir (≈ 10 segundos):
 docker compose ps
 ```
 
-### 3. Rode a API
+### 3. Configure as credenciais locais
+
+Crie o arquivo `src/FCG.Api/appsettings.Development.json` — ele **não é versionado** (cada integrante cria o seu):
+
+```json
+{
+  "Jwt": {
+    "SecretKey": "fcg-dev-secret-key-com-no-minimo-32-caracteres"
+  },
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=fcg;Username=fcg;Password=fcg_local_password"
+  },
+  "AdminSeed": {
+    "Password": "Admin@123"
+  }
+}
+```
+
+O `appsettings.json` versionado já traz `Jwt:Issuer`/`Audience` e o e-mail do admin (`admin@fcg.com`), mas deixa
+`Jwt:SecretKey`, `ConnectionStrings:Default` e `AdminSeed:Password` vazios — este arquivo os preenche. **Sem ele
+a API não sobe** (`InvalidOperationException: Jwt:SecretKey não configurada`).
+
+### 4. Rode a API
 
 ```bash
 dotnet run --project src/FCG.Api
@@ -155,7 +177,7 @@ Na inicialização:
 | E-mail | `admin@fcg.com` |
 | Senha | `Admin@123` |
 
-### 4. Acesse o Swagger
+### 5. Acesse o Swagger
 
 Abra no navegador: **http://localhost:5273/swagger**
 
