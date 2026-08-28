@@ -62,7 +62,7 @@ Mapeamento direto entre cada requisito do enunciado e onde ele está implementad
 | Swagger | ✅ | Configurado em [Program.cs](src/FCG.Api/Program.cs) — acessível em `/swagger` |
 | Testes unitários | ✅ | Projeto [FCG.Tests.Unit](tests/FCG.Tests.Unit/) — xUnit |
 | BDD em pelo menos um módulo | ✅ | Projeto [FCG.Tests.Bdd](tests/FCG.Tests.Bdd/) — Reqnroll + xUnit, 3 features, 20 cenários (26 casos executados) |
-| DDD — Event Storming | ✅ | [Miro](https://miro.com/app/board/uXjVH4alQ5U=/) — fluxos de criação de jogos e usuários |
+| DDD — Event Storming | ✅ | [Miro](https://miro.com/app/board/uXjVHxmXqYs=/) — fluxos de criação de jogos e usuários |
 | DDD — organização de entidades e regras de negócio | ✅ | Camada [FCG.Domain](src/FCG.Domain/) — agregados, value objects, exceções de domínio |
 
 ---
@@ -518,7 +518,7 @@ O domínio foi mapeado por **Event Storming** no Miro, cobrindo os seguintes flu
 - **Jornada do Jogador:** cadastro → autenticação → consulta ao catálogo → aquisição de jogo → acesso à biblioteca
 - **Jornada do Administrador:** autenticação → gestão de usuários → cadastro/edição de jogos → cadastro de promoções
 
-📋 **Link do Miro:** https://miro.com/app/board/uXjVH4alQ5U=/
+📋 **Link do Miro:** https://miro.com/app/board/uXjVHxmXqYs=/
 
 Os princípios de DDD aplicados no código:
 
