@@ -162,6 +162,15 @@ O `appsettings.json` versionado já traz `Jwt:Issuer`/`Audience` e o e-mail do a
 `Jwt:SecretKey`, `ConnectionStrings:Default` e `AdminSeed:Password` vazios — este arquivo os preenche. **Sem ele
 a API não sobe** (`InvalidOperationException: Jwt:SecretKey não configurada`).
 
+> **Em CI/CD ou produção**, sem o `appsettings.Development.json`, forneça as mesmas configurações por variáveis
+> de ambiente (o `__` representa o aninhamento das chaves):
+>
+> ```bash
+> ConnectionStrings__Default="Host=...;Port=5432;Database=fcg;Username=fcg;Password=..."
+> Jwt__SecretKey="sua-chave-secreta-com-no-minimo-32-caracteres"
+> AdminSeed__Password="senha-do-admin-inicial"
+> ```
+
 ### 4. Rode a API
 
 ```bash
