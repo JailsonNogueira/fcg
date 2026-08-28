@@ -61,7 +61,7 @@ Mapeamento direto entre cada requisito do enunciado e onde ele está implementad
 | Logs estruturados | ✅ | Serilog — console + arquivo JSON diário (`logs/fcg-*.json`) via [CorrelationIdMiddleware.cs](src/FCG.Api/Middleware/CorrelationIdMiddleware.cs) |
 | Swagger | ✅ | Configurado em [Program.cs](src/FCG.Api/Program.cs) — acessível em `/swagger` |
 | Testes unitários | ✅ | Projeto [FCG.Tests.Unit](tests/FCG.Tests.Unit/) — xUnit |
-| BDD em pelo menos um módulo | ✅ | Projeto [FCG.Tests.Bdd](tests/FCG.Tests.Bdd/) — Reqnroll + xUnit, 3 features, 21 cenários |
+| BDD em pelo menos um módulo | ✅ | Projeto [FCG.Tests.Bdd](tests/FCG.Tests.Bdd/) — Reqnroll + xUnit, 3 features, 20 cenários (26 casos executados) |
 | DDD — Event Storming | ✅ | [Miro](https://miro.com/app/board/uXjVH4alQ5U=/) — fluxos de criação de jogos e usuários |
 | DDD — organização de entidades e regras de negócio | ✅ | Camada [FCG.Domain](src/FCG.Domain/) — agregados, value objects, exceções de domínio |
 
@@ -491,9 +491,9 @@ Escritos em **português** com [Reqnroll](https://reqnroll.net/) (Gherkin + xUni
 |---|---|---|
 | `CadastroDeUsuario.feature` | 7 | Cadastro público, validação de senha e e-mail, e-mail duplicado, normalização, criação por admin |
 | `Autenticacao.feature` | 5 | Login válido, senha incorreta, conta inexistente, conta inativa, e-mail malformado |
-| `BibliotecaDeJogos.feature` | 9 | Aquisição sem/com promoção, promoção vencida, duplicidade, jogo inativo, conta inativa, isolamento entre jogadores |
+| `BibliotecaDeJogos.feature` | 8 | Aquisição sem/com promoção, promoção vencida, duplicidade, jogo inativo, conta inativa, isolamento entre jogadores |
 
-**Total: 21 cenários BDD.**
+**Total: 20 cenários** — `dotnet test` executa **26 casos** (os 2 cenários de cadastro são Esquemas de Cenário, que expandem em várias linhas de exemplos).
 
 ### Cobertura de código
 
