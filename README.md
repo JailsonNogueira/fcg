@@ -206,7 +206,7 @@ curl -s -X POST http://localhost:5273/auth/register \
   -d '{"name":"Alice","email":"alice@fcg.com","password":"Senha@123"}'
 ```
 
-**Esperado:** `201 Created` com `id`, `email` e `role: "Player"`.
+**Esperado:** `201 Created` com o `id` da conta criada (o header `Location` aponta para `api/users/{id}`).
 
 **Validação de senha — rejeitar senha fraca:**
 
